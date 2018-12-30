@@ -1,2 +1,3 @@
 tictactoe
 *.o
+.idea/
