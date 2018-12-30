@@ -1,6 +1,6 @@
 #!/usr/bin/env make -f
 
-cflags=-Wall -std=c17
+cflags=-Wall -std=c17 -ggdb
 
 all: tictactoe
 
