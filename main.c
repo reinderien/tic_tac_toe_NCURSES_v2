@@ -16,8 +16,8 @@
 #define O_COLOR 2
 #define BG_COLOR 3
 
-// #defines used as a global constant
-#define NUM_SPACES 9
+#define SQSIZE 3
+#define NUM_SPACES (SQSIZE*SQSIZE)
 
 #define INVISIBLE_CURSOR 0
 
@@ -48,8 +48,9 @@ int main(int argc, char **argv) {
     // works the same
     time_t t;
     srand((unsigned)time(&t));
-    char playable_spaces[NUM_SPACES] = {
-        'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X'};
+    char playable_spaces[NUM_SPACES] = "XXX"
+                                       "XXX"
+                                       "XXX";
     char *space_ptr = playable_spaces;
 
     // Game over splash
@@ -123,9 +124,9 @@ static void paint_board(char playable_spaces[NUM_SPACES]) {
                *padding     = "         ";
     int row, col;
     getmaxyx(stdscr, row, col);
-    int y = row / 2 - 4,
+    int y = row/2 - 4,
         len = strlen(padding),
-        x = col / 2 - len / 2;
+        x = col/2 - len/2;
     attron(COLOR_PAIR(BG_COLOR));
     for (int k = 0; k < NUM_SPACES; k++) {
         // Paint the board itself without the pieces
@@ -137,18 +138,33 @@ static void paint_board(char playable_spaces[NUM_SPACES]) {
             mvprintw(y + k, x, break_lines);
     }
     attroff(COLOR_PAIR(BG_COLOR));
+
     // insert Xs and Os:
     // First set the dynamic x and y coordinates based on terminal size
-    int playable_x[NUM_SPACES] = {x+2, x+4, x+6, x+2, x+4, x+6, x+2, x+4, x+6},
-        playable_y[NUM_SPACES] = {y+2, y+2, y+2, y+4, y+4, y+4, y+6, y+6, y+6};
+    int playable_x[NUM_SPACES], playable_y[NUM_SPACES];
+    for (int i = 0; i < SQSIZE; i++) {
+        int ycoord = y + 2*(i + 1);
+        for (int j = 0; j < SQSIZE; j++) {
+            int idx = SQSIZE*i + j;
+            playable_x[idx] = x + 2*(j + 1);
+            playable_y[idx] = ycoord;
+        }
+    }
+
     for (int k = 0; k < NUM_SPACES; k++) {
         // For each of the playable spaces, first set the color
-        if (playable_spaces[k] == 'O')
-            attron(COLOR_PAIR(O_COLOR));        
-        else if (playable_spaces[k] == 'X')
-            attron(COLOR_PAIR(X_COLOR));
-        else
-            attron(COLOR_PAIR(BG_COLOR));
+        int color;
+        switch (playable_spaces[k]) {
+            case 'O':
+                color = O_COLOR;
+                break;
+            case 'X':
+                color = X_COLOR;
+                break;
+            default:
+                color = BG_COLOR;
+        }
+        attron(COLOR_PAIR(color));
         // then insert the char for that space into the proper spot on the terminal
         mvaddch(playable_y[k], playable_x[k], playable_spaces[k]);
     }
@@ -371,22 +387,26 @@ static void paint_background() {
     getmaxyx(stdscr, row, col);
     for (int y = 0; y <= row; y++) {
         for (int x = 0; x <= col; x++) {
-            int pick = rand() % 3;
-            if (pick == 0) {
-                attron(COLOR_PAIR(X_COLOR));
-                mvprintw(y, x, "X");
-                attroff(COLOR_PAIR(X_COLOR));
+            int color;
+            char draw;
+            switch (rand() % 3) {
+                case 0:
+                    color = X_COLOR;
+                    draw = 'X';
+                    break;
+                case 1:
+                    color = O_COLOR;
+                    draw = 'O';
+                    break;
+                case 2:
+                    color = BG_COLOR;
+                    draw = ' ';
+                    break;
             }
-            else if (pick == 1) {
-                attron(COLOR_PAIR(O_COLOR));
-                mvprintw(y, x, "O");
-                attroff(COLOR_PAIR(O_COLOR));
-            }
-            else if (pick == 2) {
-                attron(COLOR_PAIR(BG_COLOR));
-                mvprintw(y, x, " ");
-                attroff(COLOR_PAIR(BG_COLOR));
-            }
+            attron(COLOR_PAIR(color));
+            char draw_str[] = {draw, '\0'};
+            mvprintw(y, x, draw_str);
+            attroff(COLOR_PAIR(color));
         }
     }
     refresh();
