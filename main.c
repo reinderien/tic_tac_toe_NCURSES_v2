@@ -32,14 +32,18 @@ static void player_turn(char *space_ptr, char playable_spaces[NUM_SPACES],
                         char side);
 static void ai_turn(char *space_ptr, char playable_spaces[NUM_SPACES],
                     char side);
+static int pick_ai_space(const char playable_spaces[NUM_SPACES],
+                         int chance_to_fart_big_move,
+                         int chance_to_fart_center,
+                         char side, char ai_side);
 static bool main_menu();
 static int evaluate_board(char playable_spaces[NUM_SPACES]);
-static int spaces_left(char playable_spaces[NUM_SPACES]);
-static bool ai_fart(const int chance_to_fart);
-static int pick_random_space(char playable_spaces[NUM_SPACES]);
-static int check_for_winning_move(char playable_spaces[NUM_SPACES],
+static int spaces_left(const char playable_spaces[NUM_SPACES]);
+static bool ai_fart(int chance_to_fart);
+static int pick_random_space(const char playable_spaces[NUM_SPACES]);
+static int check_for_winning_move(const char playable_spaces[NUM_SPACES],
                                   char ai_side);
-static int check_for_block(char playable_spaces[NUM_SPACES], char side);
+static int check_for_block(const char playable_spaces[NUM_SPACES], char side);
 static char pick_side();
 
 
@@ -580,74 +584,56 @@ static void ai_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char side
             elif self about to win take winning spot 90% of the time;
             else pick a random open spot;
     */
-    // The chances for the AI to blow a move
-    const int chance_to_fart_big_move = 10;
-    const int chance_to_fart_center = 30;
     // Picking the character for the AI to use in its calculations
     char ai_side;
     if (side == 'X')
         ai_side = 'O';
     else
         ai_side = 'X';
+
     // Check the board state with a few functions.
-    // These all return 0 if FALSE and the number of a valid
-    // index to move into if TRUE
-    int can_block_opponent = check_for_block(playable_spaces, side);
-    int can_winning_move = check_for_winning_move(playable_spaces, ai_side);
-    // Flow through the decision making logic applying the functions and checking for a fart
-    int thinking = 1;
-    int picked_space;
-    while(thinking) {
-        if (playable_spaces[4] == ' ') {
-            if (!(ai_fart(chance_to_fart_center))) {
-                picked_space = 4;
-                thinking = 0;
-                break;
-            }
-        }
-        if (can_winning_move) {
-            if (!(ai_fart(chance_to_fart_big_move))) {
-                picked_space = can_winning_move;
-                thinking = 0;
-            }
-            else{
-                picked_space = pick_random_space(playable_spaces);
-                thinking = 0;
-            }
-        }
-        else if (can_block_opponent) {
-            if (!(ai_fart(chance_to_fart_big_move))) {
-                picked_space = can_block_opponent;
-                thinking = 0;
-            }
-            else{
-                picked_space = pick_random_space(playable_spaces);
-                thinking = 0;
-            }
-        }
-        else{
-            picked_space = pick_random_space(playable_spaces);
-            thinking = 0;
-        }
-    }
+    int picked_space = pick_ai_space(playable_spaces, 10, 30, side, ai_side);
     space_ptr = &playable_spaces[picked_space];
-    if (ai_side == 'X') {
+    if (ai_side == 'X')
         attron(COLOR_PAIR(X_COLOR));
-    }
-    else if (ai_side == 'O') {
+    else
         attron(COLOR_PAIR(O_COLOR));
-    }
     *space_ptr = ai_side;
     attron(COLOR_PAIR(BG_COLOR));
 }
 
-static bool ai_fart(const int chance_to_fart) {
+static int pick_ai_space(const char playable_spaces[NUM_SPACES],
+                         int chance_to_fart_big_move,
+                         int chance_to_fart_center,
+                         char side, char ai_side) {
+    int can_block_opponent = check_for_block(playable_spaces, side),
+        can_winning_move = check_for_winning_move(playable_spaces, ai_side);
+
+    // Flow through the decision making logic applying the functions and
+    // checking for a fart
+    if (playable_spaces[4] == ' ' &&
+        !(ai_fart(chance_to_fart_center)))
+        return 4;
+    if (can_winning_move) {
+        if (!(ai_fart(chance_to_fart_big_move)))
+            return can_winning_move;
+        return pick_random_space(playable_spaces);
+    }
+    if (can_block_opponent) {
+        if (!(ai_fart(chance_to_fart_big_move)))
+            return can_block_opponent;
+        return pick_random_space(playable_spaces);
+    }
+    return pick_random_space(playable_spaces);
+}
+
+static bool ai_fart(int chance_to_fart) {
     // Takes the fart chance and returns 1 if the AI blows the move, 0 otherwise
     int roll = rand() % 100 + 1;
     return roll < chance_to_fart;
 }
 
-static int pick_random_space(char playable_spaces[NUM_SPACES]) {
+static int pick_random_space(const char playable_spaces[NUM_SPACES]) {
     // Returns a random open space on the board
     for (;;) {
         int roll = rand() % NUM_SPACES;
@@ -656,11 +642,11 @@ static int pick_random_space(char playable_spaces[NUM_SPACES]) {
     }
 }
 
-static int check_for_winning_move(char playable_spaces[NUM_SPACES], char ai_side) {
+static int check_for_winning_move(const char playable_spaces[NUM_SPACES], char ai_side) {
     // Checks to see if the AI can win the game with a final move and returns the
     // index of the valid move if TRUE, returns 0 if FALSE
     int pick;
-    int picked = 0;
+    bool picked = false;
     for (int space = 0; space < NUM_SPACES; space++) {
         // For each space: Check to see if it is a potential winning space and if so
         // switch "picked" to 1 and set "pick" to the winning index
@@ -669,15 +655,15 @@ static int check_for_winning_move(char playable_spaces[NUM_SPACES], char ai_side
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[1] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[3] == ai_side && playable_spaces[6] == ai_side) {
+                    else if (playable_spaces[3] == ai_side && playable_spaces[6] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[4] == ai_side && playable_spaces[8] == ai_side) {
+                    else if (playable_spaces[4] == ai_side && playable_spaces[8] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -685,11 +671,11 @@ else if (playable_spaces[4] == ai_side && playable_spaces[8] == ai_side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[0] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[4] == ai_side && playable_spaces[7] == ai_side) {
+                    else if (playable_spaces[4] == ai_side && playable_spaces[7] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -697,15 +683,15 @@ else if (playable_spaces[4] == ai_side && playable_spaces[7] == ai_side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[1] == ai_side && playable_spaces[0] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[4] == ai_side && playable_spaces[6] == ai_side) {
+                    else if (playable_spaces[4] == ai_side && playable_spaces[6] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[5] == ai_side && playable_spaces[8] == ai_side) {
+                    else if (playable_spaces[5] == ai_side && playable_spaces[8] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -713,11 +699,11 @@ else if (playable_spaces[5] == ai_side && playable_spaces[8] == ai_side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[4] == ai_side && playable_spaces[5] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[0] == ai_side && playable_spaces[6] == ai_side) {
+                    else if (playable_spaces[0] == ai_side && playable_spaces[6] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -725,19 +711,19 @@ else if (playable_spaces[0] == ai_side && playable_spaces[6] == ai_side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[1] == ai_side && playable_spaces[7] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[3] == ai_side && playable_spaces[5] == ai_side) {
+                    else if (playable_spaces[3] == ai_side && playable_spaces[5] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[0] == ai_side && playable_spaces[8] == ai_side) {
+                    else if (playable_spaces[0] == ai_side && playable_spaces[8] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[6] == ai_side && playable_spaces[2] == ai_side) {
+                    else if (playable_spaces[6] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -745,11 +731,11 @@ else if (playable_spaces[6] == ai_side && playable_spaces[2] == ai_side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[8] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[3] == ai_side && playable_spaces[4] == ai_side) {
+                    else if (playable_spaces[3] == ai_side && playable_spaces[4] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -757,15 +743,15 @@ else if (playable_spaces[3] == ai_side && playable_spaces[4] == ai_side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[4] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[7] == ai_side && playable_spaces[8] == ai_side) {
+                    else if (playable_spaces[7] == ai_side && playable_spaces[8] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[3] == ai_side && playable_spaces[0] == ai_side) {
+                    else if (playable_spaces[3] == ai_side && playable_spaces[0] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -773,11 +759,11 @@ else if (playable_spaces[3] == ai_side && playable_spaces[0] == ai_side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[6] == ai_side && playable_spaces[8] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[4] == ai_side && playable_spaces[1] == ai_side) {
+                    else if (playable_spaces[4] == ai_side && playable_spaces[1] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -785,15 +771,15 @@ else if (playable_spaces[4] == ai_side && playable_spaces[1] == ai_side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[5] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[4] == ai_side && playable_spaces[0] == ai_side) {
+                    else if (playable_spaces[4] == ai_side && playable_spaces[0] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[7] == ai_side && playable_spaces[6] == ai_side) {
+                    else if (playable_spaces[7] == ai_side && playable_spaces[6] == ai_side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -805,14 +791,14 @@ else if (playable_spaces[7] == ai_side && playable_spaces[6] == ai_side) {
     return 0;
 }
 
-static int check_for_block(char playable_spaces[NUM_SPACES], char side) {
+static int check_for_block(const char playable_spaces[NUM_SPACES], char side) {
     // Checks to see if the AI can block the player from winning the game with a final move
     // and returns the index of the valid move if TRUE, returns 0 if FALSE
     // Note: I am sure there is a way to combine this this function with the
     //  check_for_winning_move() function in order to avoid code duplication, probably using
     //  one more parameter as a switch of some kind. I'd be open to examples of how to do that.
     int pick;
-    int picked = 0;
+    bool picked = false;
     for (int space = 0; space < NUM_SPACES; space++) {
         // For each space: Check to see if it is a potential winning space and if so
         // switch "picked" to 1 and set "pick" to the winning index
@@ -821,15 +807,15 @@ static int check_for_block(char playable_spaces[NUM_SPACES], char side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[1] == side && playable_spaces[2] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[3] == side && playable_spaces[6] == side) {
+                    else if (playable_spaces[3] == side && playable_spaces[6] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[4] == side && playable_spaces[8] == side) {
+                    else if (playable_spaces[4] == side && playable_spaces[8] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -837,11 +823,11 @@ else if (playable_spaces[4] == side && playable_spaces[8] == side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[0] == side && playable_spaces[2] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[4] == side && playable_spaces[7] == side) {
+                    else if (playable_spaces[4] == side && playable_spaces[7] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -849,15 +835,15 @@ else if (playable_spaces[4] == side && playable_spaces[7] == side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[1] == side && playable_spaces[0] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[4] == side && playable_spaces[6] == side) {
+                    else if (playable_spaces[4] == side && playable_spaces[6] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[5] == side && playable_spaces[8] == side) {
+                    else if (playable_spaces[5] == side && playable_spaces[8] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -865,11 +851,11 @@ else if (playable_spaces[5] == side && playable_spaces[8] == side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[4] == side && playable_spaces[5] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[0] == side && playable_spaces[6] == side) {
+                    else if (playable_spaces[0] == side && playable_spaces[6] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -877,19 +863,19 @@ else if (playable_spaces[0] == side && playable_spaces[6] == side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[1] == side && playable_spaces[7] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[3] == side && playable_spaces[5] == side) {
+                    else if (playable_spaces[3] == side && playable_spaces[5] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[0] == side && playable_spaces[8] == side) {
+                    else if (playable_spaces[0] == side && playable_spaces[8] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[6] == side && playable_spaces[2] == side) {
+                    else if (playable_spaces[6] == side && playable_spaces[2] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -897,11 +883,11 @@ else if (playable_spaces[6] == side && playable_spaces[2] == side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[8] == side && playable_spaces[2] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[3] == side && playable_spaces[4] == side) {
+                    else if (playable_spaces[3] == side && playable_spaces[4] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -909,15 +895,15 @@ else if (playable_spaces[3] == side && playable_spaces[4] == side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[4] == side && playable_spaces[2] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[7] == side && playable_spaces[8] == side) {
+                    else if (playable_spaces[7] == side && playable_spaces[8] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[3] == side && playable_spaces[0] == side) {
+                    else if (playable_spaces[3] == side && playable_spaces[0] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -925,11 +911,11 @@ else if (playable_spaces[3] == side && playable_spaces[0] == side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[6] == side && playable_spaces[8] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[4] == side && playable_spaces[1] == side) {
+                    else if (playable_spaces[4] == side && playable_spaces[1] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -937,15 +923,15 @@ else if (playable_spaces[4] == side && playable_spaces[1] == side) {
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[5] == side && playable_spaces[2] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[4] == side && playable_spaces[0] == side) {
+                    else if (playable_spaces[4] == side && playable_spaces[0] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
-else if (playable_spaces[7] == side && playable_spaces[6] == side) {
+                    else if (playable_spaces[7] == side && playable_spaces[6] == side) {
                         pick = space;
-                        picked = 1;
+                        picked = true;
                     }
                 }
                 break;
@@ -961,14 +947,11 @@ else if (playable_spaces[7] == side && playable_spaces[6] == side) {
 // End AI Logic ///////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 
-static int spaces_left(char playable_spaces[NUM_SPACES]) {
+static int spaces_left(const char playable_spaces[NUM_SPACES]) {
     // Returns 0 if no spaces left
     int hits = 0;
-    int k;
-    for (k = 0; k < NUM_SPACES; k++) {
-        if (playable_spaces[k] == ' ') {
-        hits++;
-        }
-    }
+    for (int k = 0; k < NUM_SPACES; k++)
+        if (playable_spaces[k] == ' ')
+            hits++;
     return hits;
 }
