@@ -52,11 +52,11 @@ int main(int argc, char **argv) {
     srand((unsigned)time(&t));
     char playable_spaces[NUM_SPACES] = {
         'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X'};
-    char *space_ptr = &playable_spaces[0];
+    char *space_ptr = playable_spaces;
 
     // Game over splash
-    const char *game_over_str[] = " Game Over! Any key to continue... ",
-               *go_padding[]    = "                                   ";
+    const char *game_over_str = " Game Over! Any key to continue... ",
+               *go_padding    = "                                   ";
     int game_over_len = strlen(game_over_str);
     int row, col, x, y;
 
@@ -159,7 +159,7 @@ static void paint_board(char playable_spaces[NUM_SPACES]) {
     // First set the dynamic x and y coordinates based on terminal size
     int playable_x[NUM_SPACES] = {x+2, x+4, x+6, x+2, x+4, x+6, x+2, x+4, x+6},
         playable_y[NUM_SPACES] = {y+2, y+2, y+2, y+4, y+4, y+4, y+6, y+6, y+6};
-    for (k = 0; k < NUM_SPACES; k++) {
+    for (int k = 0; k < NUM_SPACES; k++) {
         // For each of the playable spaces, first set the color
         if (playable_spaces[k] == 'O')
             attron(COLOR_PAIR(O_COLOR));        
@@ -354,7 +354,7 @@ void victory_splash(int game_over_state) {
                *str3    = "         any key to continue...    ",
                *str4    = "             A tie game!           ";
     int len = strlen(padding);
-    char *vic_pointer = NULL;
+    const char *vic_pointer;
     // To avoid code duplication, use a pointer to pick the right string
     switch (game_over_state) {
     case 1:
@@ -409,7 +409,6 @@ void player_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char side) {
     // Function for the player turn
     char padding[] =  "                                                ";
     char str1[] =     "    Use arrow keys to move and 'P' to place!    ";
-    char str2[] =     "                   Good move!                   ";
     char str3[] =     "                 Invalid input!                 ";
     char str4[] =     "             You can't move that way!           ";
     char str5[] =     "              Space already occupied!           ";
