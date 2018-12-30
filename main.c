@@ -30,18 +30,14 @@ static void player_turn(char *space_ptr, char playable_spaces[NUM_SPACES],
                         char side);
 static void ai_turn(char *space_ptr, char playable_spaces[NUM_SPACES],
                     char side);
-static void set_color_ai_side(char ai_side);
-static void set_color_side(char side);
-static int main_menu();
+static bool main_menu();
 static int evaluate_board(char playable_spaces[NUM_SPACES]);
 static int spaces_left(char playable_spaces[NUM_SPACES]);
-static int ai_fart(const int chance_to_fart);
+static bool ai_fart(const int chance_to_fart);
 static int pick_random_space(char playable_spaces[NUM_SPACES]);
 static int check_for_winning_move(char playable_spaces[NUM_SPACES],
                                   char ai_side);
 static int check_for_block(char playable_spaces[NUM_SPACES], char side);
-static int check_for_2_space_path(char playable_spaces[NUM_SPACES],
-                                  char ai_side);
 static char pick_side();
 
 
@@ -58,7 +54,7 @@ int main(int argc, char **argv) {
     const char *game_over_str = " Game Over! Any key to continue... ",
                *go_padding    = "                                   ";
     int game_over_len = strlen(game_over_str);
-    int row, col, x, y;
+    int row, col;
 
     //curses init
     initscr();
@@ -72,8 +68,7 @@ int main(int argc, char **argv) {
     noecho();
 
     // Main Menu outer loop
-    int running = 1;
-    while (running) {
+    for (bool running = true; running;) {
         curs_set(0);
         // Main menu function quits or continues
         running = main_menu();
@@ -99,8 +94,8 @@ int main(int argc, char **argv) {
                     // so the player can evaluate the board for a moment
                     paint_board(playable_spaces);
                     getmaxyx(stdscr, row, col);
-                    y = row/2 + 6;
-                    x = col/2 - game_over_len/2;
+                    int y = row/2 + 6,
+                        x = col/2 - game_over_len/2;
                     attron(COLOR_PAIR(BG_COLOR));
                     mvprintw(y++, x, go_padding);
                     mvprintw(y++, x, game_over_str);
@@ -147,7 +142,7 @@ static void paint_board(char playable_spaces[NUM_SPACES]) {
     attron(COLOR_PAIR(BG_COLOR));
     for (int k = 0; k < NUM_SPACES; k++) {
         // Paint the board itself without the pieces
-        if (k == 0 || k == num_lines - 1)
+        if (k == 0 || k == NUM_SPACES - 1)
             mvprintw(y + k, x, padding);
         else if (k%2 == 0)
             mvprintw(y + k, x, play_lines);
@@ -199,43 +194,44 @@ static void take_turn(char side, char *space_ptr,
     }
 }
 
-int main_menu() {
-    clear();
-    // Takes user input and returns an int that quits or starts a game
-    int row, col;
+static bool main_menu() {
     const char *error_string = " Invalid Input! Any key to try again... ",
                *str1         = " NCURSES TIC TAC TOE (v2) ",
                *padding      = "                          ",
                *str2         = "    (P)lay or (Q)uit?     ";
     int len = strlen(str1),
         error_str_len = strlen(error_string);
+    for (;;) {
+        clear();
+        // Takes user input and returns an int that quits or starts a game
+        int row, col;
 
-    paint_background();
-    getmaxyx(stdscr, row, col);
-    int y = row / 2 - 2,
-        x = col / 2 - len / 2;
-    mvprintw(y++, x, padding);
-    mvprintw(y++, x, str1);
-    mvprintw(y++, x, padding);
-    mvprintw(y++, x, str2);
-    mvprintw(y++, x, padding);
-    refresh();
-    // get user input and return it
-    switch (toupper(getch())) {
-        case 'P':
-            return 1;
-        case 'Q':
-            return 0;
-        default:
-            // call the function again if the input is bad
-            x = col/2 - error_str_len/2;
-            mvprintw(++y, x, error_string);
-            getch();
-            main_menu();
+        paint_background();
+        getmaxyx(stdscr, row, col);
+        int y = row/2 - 2,
+            x = col/2 - len/2;
+        mvprintw(y++, x, padding);
+        mvprintw(y++, x, str1);
+        mvprintw(y++, x, padding);
+        mvprintw(y++, x, str2);
+        mvprintw(y++, x, padding);
+        refresh();
+        // get user input and return it
+        switch (toupper(getch())) {
+            case 'P':
+                return true;
+            case 'Q':
+                return false;
+            default:
+                // call the function again if the input is bad
+                x = col/2 - error_str_len/2;
+                mvprintw(++y, x, error_string);
+                getch();
+        }
     }
 }
 
-int evaluate_board(char playable_spaces[NUM_SPACES]) {
+static int evaluate_board(char playable_spaces[NUM_SPACES]) {
     // Evaluates the state of the playable spaces and either does nothing
     // or ends the game.
     // Check all the possible winning combinations:
@@ -301,52 +297,55 @@ int evaluate_board(char playable_spaces[NUM_SPACES]) {
 }
 
 char pick_side() {
-    // Takes user input and returns the chosen side
-    clear();
-    paint_background();
-    int row, col;
     const char *str1    = " Press 'X' for X, 'O' for O, or 'R' for random! ",
                *str2    = "        Good choice! Any key to continue...     ",
                *padding = "                                                ",
                *err_str = "      Invalid input! Any key to continue...     ";
     int len = strlen(str1);
-    getmaxyx(stdscr, row, col);
-    int y = row / 2 - 2,
-        x = col / 2 - len / 2;
-    mvprintw(y++, x, padding);
-    mvprintw(y++, x, str1);
-    mvprintw(y++, x, padding);
-    int pick;
-    refresh();
-    // Get user input for picking a side. 'R' is random.
-    int input = toupper(getch());
-    if (input == 'X' || input == 'O') {
-        mvprintw(y, x, str2);
+
+    for (;;) {
+        // Takes user input and returns the chosen side
+        clear();
+        paint_background();
+        int row, col;    getmaxyx(stdscr, row, col);
+        int y = row / 2 - 2,
+            x = col / 2 - len / 2;
+        mvprintw(y++, x, padding);
+        mvprintw(y++, x, str1);
+        mvprintw(y++, x, padding);
         refresh();
-        getch();
-        return (char)input;
-    }
-    if (input == 'R') {
-        pick = rand() % 2;
-        if (pick == 0)
-            input = 'X';
-        else if (pick == 1)
-            input = 'O';
-        mvprintw(y, x, str2);
-        refresh();
-        getch();
-        return (char)input;
-    }
-    else {
-        // Call the function again on bad input
-        mvprintw(y, x, err_str);
-        refresh();
-        getch();
-        pick_side();
+        // Get user input for picking a side. 'R' is random.
+        char input = toupper(getch());
+        switch (input) {
+            case 'X':
+            case 'O': {
+                mvprintw(y, x, str2);
+                refresh();
+                getch();
+                return input;
+            }
+            case 'R': {
+                bool pick = rand() % 2;
+                if (pick)
+                    input = 'X';
+                else
+                    input = 'O';
+                mvprintw(y, x, str2);
+                refresh();
+                getch();
+                return input;
+            }
+            default: {
+                // Call the function again on bad input
+                mvprintw(y, x, err_str);
+                refresh();
+                getch();
+            }
+        }
     }
 }
 
-void victory_splash(int game_over_state) {
+static void victory_splash(int game_over_state) {
     // Takes the game over state and creates a victory splash
     const char *padding = "                                   ",
                *str1    = "              X Wins!              ",
@@ -378,7 +377,7 @@ void victory_splash(int game_over_state) {
     getch();
 }
 
-void paint_background() {
+static void paint_background() {
     // Paints an elaborate flashy background
     int row, col;
     getmaxyx(stdscr, row, col);
@@ -405,7 +404,7 @@ void paint_background() {
     refresh();
 }
 
-void player_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char side) {
+static void player_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char side) {
     // Function for the player turn
     char padding[] =  "                                                ";
     char str1[] =     "    Use arrow keys to move and 'P' to place!    ";
@@ -557,7 +556,7 @@ void player_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char side) {
 // Begin AI Logic ////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
-void ai_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char side) {
+static void ai_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char side) {
     // wrapper for the AI turn
     /*
         Note: Since it is easy to accidentally create an unbeatable AI for tic tac toe
@@ -578,12 +577,10 @@ void ai_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char side) {
     const int chance_to_fart_center = 30;
     // Picking the character for the AI to use in its calculations
     char ai_side;
-    if (side == 'X') {
+    if (side == 'X')
         ai_side = 'O';
-    }
-    else if (side == 'O') {
+    else
         ai_side = 'X';
-    }
     // Check the board state with a few functions.
     // These all return 0 if FALSE and the number of a valid
     // index to move into if TRUE
@@ -636,48 +633,31 @@ void ai_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char side) {
     attron(COLOR_PAIR(BG_COLOR));
 }
 
-
-static int ai_fart(const int chance_to_fart) {
+static bool ai_fart(const int chance_to_fart) {
     // Takes the fart chance and returns 1 if the AI blows the move, 0 otherwise
-    int roll;
-    roll = rand() % 100 + 1;
-    if (roll < chance_to_fart) {
-        return 1;
-    }
-else{
-        return 0;
-    }
+    int roll = rand() % 100 + 1;
+    return roll < chance_to_fart;
 }
 
-int pick_random_space(char playable_spaces[NUM_SPACES]) {
+static int pick_random_space(char playable_spaces[NUM_SPACES]) {
     // Returns a random open space on the board
-    int roll;
-    int rolling = 1;
-    int pick;
-    while(rolling) {
-        roll = rand() % NUM_SPACES;
-        if (playable_spaces[roll] == ' ') {
-            pick = roll;
-            rolling = 0;
-        }
-else{
-            continue;
-        }
+    for (;;) {
+        int roll = rand() % NUM_SPACES;
+        if (playable_spaces[roll] == ' ')
+            return roll;
     }
-    return pick;
 }
 
-int check_for_winning_move(char playable_spaces[NUM_SPACES], char ai_side) {
+static int check_for_winning_move(char playable_spaces[NUM_SPACES], char ai_side) {
     // Checks to see if the AI can win the game with a final move and returns the
     // index of the valid move if TRUE, returns 0 if FALSE
-    int space;
     int pick;
     int picked = 0;
-    for (space = 0; space < NUM_SPACES; space++) {
+    for (int space = 0; space < NUM_SPACES; space++) {
         // For each space: Check to see if it is a potential winning space and if so
         // switch "picked" to 1 and set "pick" to the winning index
-        switch(space) {
-            case(0):
+        switch (space) {
+            case 0:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[1] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
@@ -693,7 +673,7 @@ else if (playable_spaces[4] == ai_side && playable_spaces[8] == ai_side) {
                     }
                 }
                 break;
-            case(1):
+            case 1:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[0] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
@@ -705,7 +685,7 @@ else if (playable_spaces[4] == ai_side && playable_spaces[7] == ai_side) {
                     }
                 }
                 break;
-            case(2):
+            case 2:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[1] == ai_side && playable_spaces[0] == ai_side) {
                         pick = space;
@@ -721,7 +701,7 @@ else if (playable_spaces[5] == ai_side && playable_spaces[8] == ai_side) {
                     }
                 }
                 break;
-            case(3):
+            case 3:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[4] == ai_side && playable_spaces[5] == ai_side) {
                         pick = space;
@@ -733,7 +713,7 @@ else if (playable_spaces[0] == ai_side && playable_spaces[6] == ai_side) {
                     }
                 }
                 break;
-            case(4):
+            case 4:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[1] == ai_side && playable_spaces[7] == ai_side) {
                         pick = space;
@@ -753,7 +733,7 @@ else if (playable_spaces[6] == ai_side && playable_spaces[2] == ai_side) {
                     }
                 }
                 break;
-            case(5):
+            case 5:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[8] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
@@ -765,7 +745,7 @@ else if (playable_spaces[3] == ai_side && playable_spaces[4] == ai_side) {
                     }
                 }
                 break;
-            case(6):
+            case 6:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[4] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
@@ -781,7 +761,7 @@ else if (playable_spaces[3] == ai_side && playable_spaces[0] == ai_side) {
                     }
                 }
                 break;
-            case(7):
+            case 7:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[6] == ai_side && playable_spaces[8] == ai_side) {
                         pick = space;
@@ -793,7 +773,7 @@ else if (playable_spaces[4] == ai_side && playable_spaces[1] == ai_side) {
                     }
                 }
                 break;
-            case(8):
+            case 8:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[5] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
@@ -812,28 +792,24 @@ else if (playable_spaces[7] == ai_side && playable_spaces[6] == ai_side) {
         }
     }
     // return winning index if any
-    if (picked) {
+    if (picked)
         return pick;
-    }
-else{
-        return 0;
-    }
+    return 0;
 }
 
-int check_for_block(char playable_spaces[NUM_SPACES], char side) {
+static int check_for_block(char playable_spaces[NUM_SPACES], char side) {
     // Checks to see if the AI can block the player from winning the game with a final move
     // and returns the index of the valid move if TRUE, returns 0 if FALSE
     // Note: I am sure there is a way to combine this this function with the
     //  check_for_winning_move() function in order to avoid code duplication, probably using
     //  one more parameter as a switch of some kind. I'd be open to examples of how to do that.
-    int space;
     int pick;
     int picked = 0;
-    for (space = 0; space < NUM_SPACES; space++) {
+    for (int space = 0; space < NUM_SPACES; space++) {
         // For each space: Check to see if it is a potential winning space and if so
         // switch "picked" to 1 and set "pick" to the winning index
-        switch(space) {
-            case(0):
+        switch (space) {
+            case 0:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[1] == side && playable_spaces[2] == side) {
                         pick = space;
@@ -849,7 +825,7 @@ else if (playable_spaces[4] == side && playable_spaces[8] == side) {
                     }
                 }
                 break;
-            case(1):
+            case 1:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[0] == side && playable_spaces[2] == side) {
                         pick = space;
@@ -861,7 +837,7 @@ else if (playable_spaces[4] == side && playable_spaces[7] == side) {
                     }
                 }
                 break;
-            case(2):
+            case 2:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[1] == side && playable_spaces[0] == side) {
                         pick = space;
@@ -877,7 +853,7 @@ else if (playable_spaces[5] == side && playable_spaces[8] == side) {
                     }
                 }
                 break;
-            case(3):
+            case 3:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[4] == side && playable_spaces[5] == side) {
                         pick = space;
@@ -889,7 +865,7 @@ else if (playable_spaces[0] == side && playable_spaces[6] == side) {
                     }
                 }
                 break;
-            case(4):
+            case 4:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[1] == side && playable_spaces[7] == side) {
                         pick = space;
@@ -909,7 +885,7 @@ else if (playable_spaces[6] == side && playable_spaces[2] == side) {
                     }
                 }
                 break;
-            case(5):
+            case 5:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[8] == side && playable_spaces[2] == side) {
                         pick = space;
@@ -921,7 +897,7 @@ else if (playable_spaces[3] == side && playable_spaces[4] == side) {
                     }
                 }
                 break;
-            case(6):
+            case 6:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[4] == side && playable_spaces[2] == side) {
                         pick = space;
@@ -937,7 +913,7 @@ else if (playable_spaces[3] == side && playable_spaces[0] == side) {
                     }
                 }
                 break;
-            case(7):
+            case 7:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[6] == side && playable_spaces[8] == side) {
                         pick = space;
@@ -949,7 +925,7 @@ else if (playable_spaces[4] == side && playable_spaces[1] == side) {
                     }
                 }
                 break;
-            case(8):
+            case 8:
                 if (playable_spaces[space] == ' ') {
                     if (playable_spaces[5] == side && playable_spaces[2] == side) {
                         pick = space;
@@ -968,19 +944,16 @@ else if (playable_spaces[7] == side && playable_spaces[6] == side) {
         }
     }
     // return winning index if any
-    if (picked) {
+    if (picked)
         return pick;
-    }
-else{
-        return 0;
-    }
+    return 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
 // End AI Logic ///////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 
-int spaces_left(char playable_spaces[NUM_SPACES]) {
+static int spaces_left(char playable_spaces[NUM_SPACES]) {
     // Returns 0 if no spaces left
     int hits = 0;
     int k;
