@@ -19,6 +19,8 @@
 // #defines used as a global constant
 #define NUM_SPACES 9
 
+#define INVISIBLE_CURSOR 0
+
 // Function Declarations
 static void init_spaces(char *space_ptr);
 static void paint_board(char playable_spaces[NUM_SPACES]);
@@ -54,13 +56,12 @@ int main(int argc, char **argv) {
     const char *game_over_str = " Game Over! Any key to continue... ",
                *go_padding    = "                                   ";
     int game_over_len = strlen(game_over_str);
-    int row, col;
 
     //curses init
     initscr();
     cbreak();
     keypad(stdscr, 1);
-    curs_set(0);
+    curs_set(INVISIBLE_CURSOR);
     start_color();
     init_pair(X_COLOR, COLOR_CYAN, COLOR_BLACK);
     init_pair(O_COLOR, COLOR_GREEN, COLOR_BLACK);
@@ -68,49 +69,38 @@ int main(int argc, char **argv) {
     noecho();
 
     // Main Menu outer loop
-    for (bool running = true; running;) {
-        curs_set(0);
-        // Main menu function quits or continues
-        running = main_menu();
-        // In-Game inner loop
-        if (!running)
-            break;
-        for (bool playing = true; playing;) {
-            // Init all spaces to blank
-            init_spaces(space_ptr);
-            // Player picks their side.
-            char side = pick_side();
-            // The inner, inner turn loop
-            for (bool turning = true; turning;) {
-                int game_over = 0;
-                // Paint the board state as it is that turn
-                paint_board(playable_spaces);
-                // Function that governs the turn cycle
-                take_turn(side, space_ptr, playable_spaces);
-                // Evaluate the board for game over state
-                game_over = evaluate_board(playable_spaces);
-                if (game_over > 0) {
-                    // paint the board with a splash on game over
-                    // so the player can evaluate the board for a moment
-                    paint_board(playable_spaces);
-                    getmaxyx(stdscr, row, col);
-                    int y = row/2 + 6,
-                        x = col/2 - game_over_len/2;
-                    attron(COLOR_PAIR(BG_COLOR));
-                    mvprintw(y++, x, go_padding);
-                    mvprintw(y++, x, game_over_str);
-                    mvprintw(y, x, go_padding);
-                    refresh();
-                    getch();
-                    // call victory_splash with int game_over as a parameter
-                    // 1 = X wins, 2 = O wins, 3 = Tie
-                    victory_splash(game_over);
-                    // Reset the turning and playing loops to effectively start over
-                    turning = false;
-                    playing = false;
-                }
-            }
-        }
+    // Main menu function quits or continues
+    while (main_menu()) {
+        // Init all spaces to blank
+        init_spaces(space_ptr);
+        // Player picks their side.
+        char side = pick_side();
+        // The inner, inner turn loop
+        int game_over;
+        do {
+            // Paint the board state as it is that turn
+            paint_board(playable_spaces);
+            // Function that governs the turn cycle
+            take_turn(side, space_ptr, playable_spaces);
+            // Evaluate the board for game over state
+            game_over = evaluate_board(playable_spaces);
+        } while (!game_over);
+        // paint the board with a splash on game over
+        // so the player can evaluate the board for a moment
+        paint_board(playable_spaces);
+        int row, col;
+        getmaxyx(stdscr, row, col);
+        int y = row/2 + 6,
+            x = col/2 - game_over_len/2;
+        attron(COLOR_PAIR(BG_COLOR));
+        mvprintw(y++, x, go_padding);
+        mvprintw(y++, x, game_over_str);
+        mvprintw(y, x, go_padding);
+        refresh();
+        getch();
+        // call victory_splash with int game_over as a parameter
+        // 1 = X wins, 2 = O wins, 3 = Tie
+        victory_splash(game_over);
     }
 
     // end curses
@@ -120,11 +110,8 @@ int main(int argc, char **argv) {
 }
 
 static void init_spaces(char *space_ptr) {
-    // init all the spaces to ' ';
-    for (int i = 0; i < NUM_SPACES; i++) {
-        *space_ptr = ' ';
-        space_ptr++;
-    }
+    // init all the spaces to ' '
+    memset(space_ptr, ' ', NUM_SPACES);
 }
 
 static void paint_board(char playable_spaces[NUM_SPACES]) {
@@ -307,7 +294,8 @@ char pick_side() {
         // Takes user input and returns the chosen side
         clear();
         paint_background();
-        int row, col;    getmaxyx(stdscr, row, col);
+        int row, col;
+        getmaxyx(stdscr, row, col);
         int y = row / 2 - 2,
             x = col / 2 - len / 2;
         mvprintw(y++, x, padding);
