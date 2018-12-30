@@ -3,17 +3,13 @@
 // tic tac toe v2 using suggestions from Stack Exchange for better style
 // Minus the struct stuff which I don't quite understand just yet.
 
-// ncurses for, well, ncurses
+#include <ctype.h>
 #include <ncurses.h>
-// time for the random seed
-#include <time.h>
-// string.h for strlen() 
 #include <string.h>
-// stdlib and stdio because why not
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
-// ctype.h for toupper()
-#include <ctype.h>
+#include <time.h>
 
 // #define's for the COLOR_PAIRs
 #define X_COLOR 1
@@ -21,38 +17,46 @@
 #define BG_COLOR 3
 
 // #defines used as a global constant
-#define num_spaces 9
+#define NUM_SPACES 9
 
 // Function Declarations
-void init_spaces(char *space_ptr);
-void paint_board(char playable_spaces[num_spaces]);
-void take_turn(char side, char *space_ptr, char playable_spaces[num_spaces]);
-void victory_splash(int game_over_state);
-void paint_background();
-void player_turn(char *space_ptr, char playable_spaces[num_spaces], char side);
-void ai_turn(char *space_ptr, char playable_spaces[num_spaces], char side);
-void set_color_ai_side(char ai_side);
-void set_color_side(char side);
-int main_menu();
-int evaluate_board(char playable_spaces[num_spaces]);
-int spaces_left(char playable_spaces[num_spaces]);
-int ai_fart(const int chance_to_fart);
-int pick_random_space(char playable_spaces[num_spaces]);
-int check_for_winning_move(char playable_spaces[num_spaces], char ai_side);
-int check_for_block(char playable_spaces[num_spaces], char side);
-int check_for_2_space_path(char playable_spaces[num_spaces], char ai_side);
-char pick_side();
+static void init_spaces(char *space_ptr);
+static void paint_board(char playable_spaces[NUM_SPACES]);
+static void take_turn(char side, char *space_ptr,
+                      char playable_spaces[NUM_SPACES]);
+static void victory_splash(int game_over_state);
+static void paint_background();
+static void player_turn(char *space_ptr, char playable_spaces[NUM_SPACES],
+                        char side);
+static void ai_turn(char *space_ptr, char playable_spaces[NUM_SPACES],
+                    char side);
+static void set_color_ai_side(char ai_side);
+static void set_color_side(char side);
+static int main_menu();
+static int evaluate_board(char playable_spaces[NUM_SPACES]);
+static int spaces_left(char playable_spaces[NUM_SPACES]);
+static int ai_fart(const int chance_to_fart);
+static int pick_random_space(char playable_spaces[NUM_SPACES]);
+static int check_for_winning_move(char playable_spaces[NUM_SPACES],
+                                  char ai_side);
+static int check_for_block(char playable_spaces[NUM_SPACES], char side);
+static int check_for_2_space_path(char playable_spaces[NUM_SPACES],
+                                  char ai_side);
+static char pick_side();
 
-int main(){
-    // To-Do: Try the time(NULL) method for srand initialization and see if it works the same
+
+int main(int argc, char **argv) {
+    // To-Do: Try the time(NULL) method for srand initialization and see if it
+    // works the same
     time_t t;
-    srand((unsigned) time(&t));
-    char playable_spaces[num_spaces] = {'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X'};
+    srand((unsigned)time(&t));
+    char playable_spaces[NUM_SPACES] = {
+        'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X'};
     char *space_ptr = &playable_spaces[0];
 
     // Game over splash
-    char game_over_str[] =  " Game Over! Any key to continue... ";
-    char go_padding[] = "                                   ";
+    const char *game_over_str[] = " Game Over! Any key to continue... ",
+               *go_padding[]    = "                                   ";
     int game_over_len = strlen(game_over_str);
     int row, col, x, y;
 
@@ -69,23 +73,20 @@ int main(){
 
     // Main Menu outer loop
     int running = 1;
-    while(running){
+    while (running) {
         curs_set(0);
         // Main menu function quits or continues
         running = main_menu();
         // In-Game inner loop
-        if(running == 0){
+        if (!running)
             break;
-        }
-        int playing = 1;
-        while(playing){
+        for (bool playing = true; playing;) {
             // Init all spaces to blank
             init_spaces(space_ptr);
             // Player picks their side.
             char side = pick_side();
             // The inner, inner turn loop
-            int turning = 1;
-            while(turning){
+            for (bool turning = true; turning;) {
                 int game_over = 0;
                 // Paint the board state as it is that turn
                 paint_board(playable_spaces);
@@ -93,13 +94,13 @@ int main(){
                 take_turn(side, space_ptr, playable_spaces);
                 // Evaluate the board for game over state
                 game_over = evaluate_board(playable_spaces);
-                if(game_over > 0){
+                if (game_over > 0) {
                     // paint the board with a splash on game over
                     // so the player can evaluate the board for a moment
                     paint_board(playable_spaces);
                     getmaxyx(stdscr, row, col);
-                    y = row / 2 + 6;
-                    x = col / 2 - game_over_len / 2;
+                    y = row/2 + 6;
+                    x = col/2 - game_over_len/2;
                     attron(COLOR_PAIR(BG_COLOR));
                     mvprintw(y++, x, go_padding);
                     mvprintw(y++, x, game_over_str);
@@ -110,8 +111,8 @@ int main(){
                     // 1 = X wins, 2 = O wins, 3 = Tie
                     victory_splash(game_over);
                     // Reset the turning and playing loops to effectively start over
-                    turning = 0;
-                    playing = 0;
+                    turning = false;
+                    playing = false;
                 }
             }
         }
@@ -123,58 +124,49 @@ int main(){
     return 0;
 }
 
-
-void init_spaces(char *space_ptr){ 
+static void init_spaces(char *space_ptr) {
     // init all the spaces to ' ';
-    int i;
-    for(i = 0; i < 9; i++){
+    for (int i = 0; i < NUM_SPACES; i++) {
         *space_ptr = ' ';
         space_ptr++;
     }
 }
 
-void paint_board(char playable_spaces[num_spaces]){
+static void paint_board(char playable_spaces[NUM_SPACES]) {
     // paint the board and the playable spaces
     clear();
     paint_background();
-    char break_lines[] = " ------- ";
-    char play_lines[] =  " | | | | ";
-    char padding[] =     "         ";
-    int row, col, x, y;
+    const char *break_lines = " ------- ",
+               *play_lines  = " | | | | ",
+               *padding     = "         ";
+    int row, col;
     getmaxyx(stdscr, row, col);
-    y = row / 2 - 4;
-    int len;
-    len = strlen(padding);
-    x = col / 2 - len / 2;
-    int k;
-    const int num_lines = 9;
+    int y = row / 2 - 4,
+        len = strlen(padding),
+        x = col / 2 - len / 2;
     attron(COLOR_PAIR(BG_COLOR));
-    for(k = 0; k < num_lines; k++){
+    for (int k = 0; k < NUM_SPACES; k++) {
         // Paint the board itself without the pieces
-        if(k == 0 || k == num_lines - 1){
+        if (k == 0 || k == num_lines - 1)
             mvprintw(y + k, x, padding);
-        }else{
-            if(k % 2 == 0){
-                mvprintw(y + k, x, play_lines);
-            }else{
-                mvprintw(y + k, x, break_lines);
-            }
-        }
+        else if (k%2 == 0)
+            mvprintw(y + k, x, play_lines);
+        else
+            mvprintw(y + k, x, break_lines);
     }
     attroff(COLOR_PAIR(BG_COLOR));
     // insert Xs and Os:
     // First set the dynamic x and y coordinates based on terminal size
-    int playable_x[num_spaces] = {x+2, x+4, x+6, x+2, x+4, x+6, x+2, x+4, x+6};
-    int playable_y[num_spaces] = {y+2, y+2, y+2, y+4, y+4, y+4, y+6, y+6, y+6};
-    for(k = 0; k < num_spaces; k++){
+    int playable_x[NUM_SPACES] = {x+2, x+4, x+6, x+2, x+4, x+6, x+2, x+4, x+6},
+        playable_y[NUM_SPACES] = {y+2, y+2, y+2, y+4, y+4, y+4, y+6, y+6, y+6};
+    for (k = 0; k < NUM_SPACES; k++) {
         // For each of the playable spaces, first set the color
-        if(playable_spaces[k] == 'O'){
+        if (playable_spaces[k] == 'O')
             attron(COLOR_PAIR(O_COLOR));        
-        }else if(playable_spaces[k] == 'X'){
+        else if (playable_spaces[k] == 'X')
             attron(COLOR_PAIR(X_COLOR));
-        }else{
+        else
             attron(COLOR_PAIR(BG_COLOR));
-        }
         // then insert the char for that space into the proper spot on the terminal
         mvaddch(playable_y[k], playable_x[k], playable_spaces[k]);
     }
@@ -182,22 +174,24 @@ void paint_board(char playable_spaces[num_spaces]){
     refresh();
 }
 
-void take_turn(char side, char *space_ptr, char playable_spaces[num_spaces]){
+static void take_turn(char side, char *space_ptr,
+                      char playable_spaces[NUM_SPACES]) {
     // using "side" to determine the order, call the functions to play a whole turn
-    if(side == 'X'){
+    if (side == 'X') {
         player_turn(space_ptr, playable_spaces, side);
         paint_board(playable_spaces);
-        if(spaces_left(playable_spaces)){
-            if(!(evaluate_board(playable_spaces))){
+        if (spaces_left(playable_spaces)) {
+            if (!(evaluate_board(playable_spaces))) {
                 ai_turn(space_ptr, playable_spaces, side);
                 paint_board(playable_spaces);
             }
         }
-    }else if(side == 'O'){
+    }
+    else if (side == 'O') {
         ai_turn(space_ptr, playable_spaces, side);
         paint_board(playable_spaces);
-        if(spaces_left(playable_spaces)){
-            if(!(evaluate_board(playable_spaces))){
+        if (spaces_left(playable_spaces)) {
+            if (!(evaluate_board(playable_spaces))) {
                 player_turn(space_ptr, playable_spaces, side);
                 paint_board(playable_spaces);
             }
@@ -205,133 +199,145 @@ void take_turn(char side, char *space_ptr, char playable_spaces[num_spaces]){
     }
 }
 
-int main_menu(){
+int main_menu() {
     clear();
     // Takes user input and returns an int that quits or starts a game
-    int row, col, x, y;
-    char error_string[] = " Invalid Input! Any key to try again... ";
-    int error_str_len = strlen(error_string);
-    char str1[] =      " NCURSES TIC TAC TOE (v2) ";
-    char padding[] =   "                          ";
-    char str2[] =      "    (P)lay or (Q)uit?     ";
-    int len = strlen(str1);
+    int row, col;
+    const char *error_string = " Invalid Input! Any key to try again... ",
+               *str1         = " NCURSES TIC TAC TOE (v2) ",
+               *padding      = "                          ",
+               *str2         = "    (P)lay or (Q)uit?     ";
+    int len = strlen(str1),
+        error_str_len = strlen(error_string);
+
     paint_background();
     getmaxyx(stdscr, row, col);
-    y = row / 2 - 2;
-    x = col / 2 - len / 2;
+    int y = row / 2 - 2,
+        x = col / 2 - len / 2;
     mvprintw(y++, x, padding);
     mvprintw(y++, x, str1);
     mvprintw(y++, x, padding);
     mvprintw(y++, x, str2);
     mvprintw(y++, x, padding);
-    int input;
     refresh();
     // get user input and return it
-    input = toupper(getch());
-    if(input == 'P'){
-        return 1;
-    }else if(input == 'Q'){
-        return 0;
-    }else{
-        // call the function again if the input is bad
-        x = col / 2 - error_str_len / 2;
-        mvprintw(++y, x, error_string);
-        getch();
-        main_menu();
+    switch (toupper(getch())) {
+        case 'P':
+            return 1;
+        case 'Q':
+            return 0;
+        default:
+            // call the function again if the input is bad
+            x = col/2 - error_str_len/2;
+            mvprintw(++y, x, error_string);
+            getch();
+            main_menu();
     }
 }
 
-int evaluate_board(char playable_spaces[num_spaces]){
+int evaluate_board(char playable_spaces[NUM_SPACES]) {
     // Evaluates the state of the playable spaces and either does nothing
     // or ends the game.
     // Check all the possible winning combinations:
-    if(playable_spaces[0] == 'X' && playable_spaces[1] == 'X' && playable_spaces[2] == 'X'){
+    if (playable_spaces[0] == 'X' && playable_spaces[1] == 'X' && playable_spaces[2] == 'X') {
         return 1;
-    }else if(playable_spaces[3] == 'X' && playable_spaces[4] == 'X' && playable_spaces[5] == 'X'){
-        return 1;
-    }else if(playable_spaces[6] == 'X' && playable_spaces[7] == 'X' && playable_spaces[8] == 'X'){
-        return 1;
-    }else if(playable_spaces[0] == 'X' && playable_spaces[3] == 'X' && playable_spaces[6] == 'X'){
-        return 1;
-    }else if(playable_spaces[1] == 'X' && playable_spaces[4] == 'X' && playable_spaces[7] == 'X'){
-        return 1;
-    }else if(playable_spaces[2] == 'X' && playable_spaces[5] == 'X' && playable_spaces[8] == 'X'){
-        return 1;
-    }else if(playable_spaces[0] == 'X' && playable_spaces[4] == 'X' && playable_spaces[8] == 'X'){
-        return 1;
-    }else if(playable_spaces[2] == 'X' && playable_spaces[4] == 'X' && playable_spaces[6] == 'X'){
-        return 1;
-    }else if(playable_spaces[0] == 'O' && playable_spaces[1] == 'O' && playable_spaces[2] == 'O'){
-        return 2;
-    }else if(playable_spaces[3] == 'O' && playable_spaces[4] == 'O' && playable_spaces[5] == 'O'){
-        return 2;
-    }else if(playable_spaces[6] == 'O' && playable_spaces[7] == 'O' && playable_spaces[8] == 'O'){
-        return 2;
-    }else if(playable_spaces[0] == 'O' && playable_spaces[3] == 'O' && playable_spaces[6] == 'O'){
-        return 2;
-    }else if(playable_spaces[1] == 'O' && playable_spaces[4] == 'O' && playable_spaces[7] == 'O'){
-        return 2;
-    }else if(playable_spaces[2] == 'O' && playable_spaces[5] == 'O' && playable_spaces[8] == 'O'){
-        return 2;
-    }else if(playable_spaces[0] == 'O' && playable_spaces[4] == 'O' && playable_spaces[8] == 'O'){
-        return 2;
-    }else if(playable_spaces[2] == 'O' && playable_spaces[4] == 'O' && playable_spaces[6] == 'O'){
-        return 2;
-    }else{
-        // Check all spaces for a tie
-        int hits = 0;
-        int i;
-        for(i = 0; i < num_spaces; i++){
-            if(playable_spaces[i] != ' '){
-                hits++;
-            }
-        }
-        if(hits >= num_spaces){
-            return 3;
-        }else{
-            return 0;
-        }
     }
+    if (playable_spaces[3] == 'X' && playable_spaces[4] == 'X' && playable_spaces[5] == 'X') {
+        return 1;
+    }
+    if (playable_spaces[6] == 'X' && playable_spaces[7] == 'X' && playable_spaces[8] == 'X') {
+        return 1;
+    }
+    if (playable_spaces[0] == 'X' && playable_spaces[3] == 'X' && playable_spaces[6] == 'X') {
+        return 1;
+    }
+    if (playable_spaces[1] == 'X' && playable_spaces[4] == 'X' && playable_spaces[7] == 'X') {
+        return 1;
+    }
+    if (playable_spaces[2] == 'X' && playable_spaces[5] == 'X' && playable_spaces[8] == 'X') {
+        return 1;
+    }
+    if (playable_spaces[0] == 'X' && playable_spaces[4] == 'X' && playable_spaces[8] == 'X') {
+        return 1;
+    }
+    if (playable_spaces[2] == 'X' && playable_spaces[4] == 'X' && playable_spaces[6] == 'X') {
+        return 1;
+    }
+    if (playable_spaces[0] == 'O' && playable_spaces[1] == 'O' && playable_spaces[2] == 'O') {
+        return 2;
+    }
+    if (playable_spaces[3] == 'O' && playable_spaces[4] == 'O' && playable_spaces[5] == 'O') {
+        return 2;
+    }
+    if (playable_spaces[6] == 'O' && playable_spaces[7] == 'O' && playable_spaces[8] == 'O') {
+        return 2;
+    }
+    if (playable_spaces[0] == 'O' && playable_spaces[3] == 'O' && playable_spaces[6] == 'O') {
+        return 2;
+    }
+    if (playable_spaces[1] == 'O' && playable_spaces[4] == 'O' && playable_spaces[7] == 'O') {
+        return 2;
+    }
+    if (playable_spaces[2] == 'O' && playable_spaces[5] == 'O' && playable_spaces[8] == 'O') {
+        return 2;
+    }
+    else if (playable_spaces[0] == 'O' && playable_spaces[4] == 'O' && playable_spaces[8] == 'O') {
+        return 2;
+    }
+    else if (playable_spaces[2] == 'O' && playable_spaces[4] == 'O' && playable_spaces[6] == 'O') {
+        return 2;
+    }
+
+    // Check all spaces for a tie
+    int hits = 0;
+    for (int i = 0; i < NUM_SPACES; i++)
+        if (playable_spaces[i] != ' ')
+            hits++;
+
+    if (hits >= NUM_SPACES)
+        return 3;
+
+    return 0;
 }
 
-char pick_side(){
+char pick_side() {
     // Takes user input and returns the chosen side
     clear();
     paint_background();
-    int row, col, x, y;
-    char str1[] =    " Press 'X' for X, 'O' for O, or 'R' for random! ";
-    char str2[] =    "        Good choice! Any key to continue...     ";
-    char padding[] = "                                                ";
-    char err_str[] = "      Invalid input! Any key to continue...     ";
+    int row, col;
+    const char *str1    = " Press 'X' for X, 'O' for O, or 'R' for random! ",
+               *str2    = "        Good choice! Any key to continue...     ",
+               *padding = "                                                ",
+               *err_str = "      Invalid input! Any key to continue...     ";
     int len = strlen(str1);
     getmaxyx(stdscr, row, col);
-    y = row / 2 - 2;
-    x = col / 2 - len / 2;
+    int y = row / 2 - 2,
+        x = col / 2 - len / 2;
     mvprintw(y++, x, padding);
     mvprintw(y++, x, str1);
     mvprintw(y++, x, padding);
-    int input;
     int pick;
     refresh();
     // Get user input for picking a side. 'R' is random.
-    input = toupper(getch());
-    if(input == 'X' || input == 'O'){
+    int input = toupper(getch());
+    if (input == 'X' || input == 'O') {
         mvprintw(y, x, str2);
         refresh();
         getch();
-        return (char) input;
-    }else if(input == 'R'){
+        return (char)input;
+    }
+    if (input == 'R') {
         pick = rand() % 2;
-        if(pick == 0){
+        if (pick == 0)
             input = 'X';
-        }else if(pick == 1){
+        else if (pick == 1)
             input = 'O';
-        }
         mvprintw(y, x, str2);
         refresh();
         getch();
-        return (char) input;
-    }else{
+        return (char)input;
+    }
+    else {
         // Call the function again on bad input
         mvprintw(y, x, err_str);
         refresh();
@@ -340,29 +346,30 @@ char pick_side(){
     }
 }
 
-void victory_splash(int game_over_state){
+void victory_splash(int game_over_state) {
     // Takes the game over state and creates a victory splash
-    char padding[] = "                                   ";
-    char *str1 =     "              X Wins!              ";
-    char *str2 =     "              O Wins!              ";
-    char str3[] =    "         any key to continue...    ";
-    char *str4 =     "             A tie game!           ";
+    const char *padding = "                                   ",
+               *str1    = "              X Wins!              ",
+               *str2    = "              O Wins!              ",
+               *str3    = "         any key to continue...    ",
+               *str4    = "             A tie game!           ";
     int len = strlen(padding);
     char *vic_pointer = NULL;
     // To avoid code duplication, use a pointer to pick the right string
-    if(game_over_state == 1){
+    switch (game_over_state) {
+    case 1:
         vic_pointer = str1;
-    }else if(game_over_state == 2){
+    case 2:
         vic_pointer = str2;
-    }else if(game_over_state == 3){
+    case 3:
         vic_pointer = str4;
     }
     clear();
     paint_background();
-    int row, col, x, y;
+    int row, col;
     getmaxyx(stdscr, row, col);
-    y = row / 2 - 2;
-    x = col / 2 - len / 2;
+    int y = row/2 - 2,
+        x = col/2 - len/2;
     mvprintw(y++, x, padding);
     mvprintw(y++, x, vic_pointer);
     mvprintw(y++, x, padding);
@@ -371,23 +378,24 @@ void victory_splash(int game_over_state){
     getch();
 }
 
-void paint_background(){
+void paint_background() {
     // Paints an elaborate flashy background
-    int row, col, x, y;
-    int pick;
+    int row, col;
     getmaxyx(stdscr, row, col);
-    for(y = 0; y <= row; y++){
-        for(x = 0; x <= col; x++){
-            pick = rand() % 3;
-            if(pick == 0){
+    for (int y = 0; y <= row; y++) {
+        for (int x = 0; x <= col; x++) {
+            int pick = rand() % 3;
+            if (pick == 0) {
                 attron(COLOR_PAIR(X_COLOR));
                 mvprintw(y, x, "X");
                 attroff(COLOR_PAIR(X_COLOR));
-            }else if(pick == 1){
+            }
+            else if (pick == 1) {
                 attron(COLOR_PAIR(O_COLOR));
                 mvprintw(y, x, "O");
                 attroff(COLOR_PAIR(O_COLOR));
-            }else if(pick == 2){
+            }
+            else if (pick == 2) {
                 attron(COLOR_PAIR(BG_COLOR));
                 mvprintw(y, x, " ");
                 attroff(COLOR_PAIR(BG_COLOR));
@@ -397,7 +405,7 @@ void paint_background(){
     refresh();
 }
 
-void player_turn(char *space_ptr, char playable_spaces[num_spaces], char side){
+void player_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char side) {
     // Function for the player turn
     char padding[] =  "                                                ";
     char str1[] =     "    Use arrow keys to move and 'P' to place!    ";
@@ -414,8 +422,8 @@ void player_turn(char *space_ptr, char playable_spaces[num_spaces], char side){
     x = col / 2 - board_line_len / 2;
     // Use the same method of dynamically measuring where the spaces are at using
     // terminal size as in the paint_board() function.
-    int playable_x[num_spaces] = {x+2, x+4, x+6, x+2, x+4, x+6, x+2, x+4, x+6};
-    int playable_y[num_spaces] = {y+2, y+2, y+2, y+4, y+4, y+4, y+6, y+6, y+6};
+    int playable_x[NUM_SPACES] = {x+2, x+4, x+6, x+2, x+4, x+6, x+2, x+4, x+6};
+    int playable_y[NUM_SPACES] = {y+2, y+2, y+2, y+4, y+4, y+4, y+6, y+6, y+6};
     // The variables and mvprintw functions for the "info line"
     const int info_line_y = (row / 2 - board_lines / 2) + 10;
     const int info_line_x = col / 2 - len / 2;
@@ -430,83 +438,100 @@ void player_turn(char *space_ptr, char playable_spaces[num_spaces], char side){
     move(*pos_y, *pos_x);
     curs_set(1);
     refresh();
-    while(moving){
+    while(moving) {
         // For each movement key, if the move is valid, use pointer
         // arithmetic to mov pos_x and pos_y around.
         input = toupper(getch());
-        if(input == KEY_UP){
-            if(*pos_y != playable_y[0]){
+        if (input == KEY_UP) {
+            if (*pos_y != playable_y[0]) {
                 pos_y -= 3;
                 move(*pos_y, *pos_x);
                 refresh();
-            }else{
+            }
+            else{
                 mvprintw(info_line_y, info_line_x, str4);
                 move(*pos_y, *pos_x);
                 refresh();
             }
-        }else if(input == KEY_DOWN){
-            if(*pos_y != playable_y[6]){
+        }
+        else if (input == KEY_DOWN) {
+            if (*pos_y != playable_y[6]) {
                 pos_y += 3;
                 move(*pos_y, *pos_x);
                 refresh();
-            }else{
+            }
+            else{
                 mvprintw(info_line_y, info_line_x, str4);
                 move(*pos_y, *pos_x);
                 refresh();
             }
-        }else if(input == KEY_LEFT){
-            if(*pos_x != playable_x[0]){
+        }
+        else if (input == KEY_LEFT) {
+            if (*pos_x != playable_x[0]) {
                 pos_x -= 1;
                 move(*pos_y, *pos_x);
                 refresh();
-            }else{
+            }
+            else{
                 mvprintw(info_line_y, info_line_x, str4);
                 move(*pos_y, *pos_x);
                 refresh();
             }
-        }else if(input == KEY_RIGHT){
-            if(*pos_x != playable_x[2]){
+        }
+        else if (input == KEY_RIGHT) {
+            if (*pos_x != playable_x[2]) {
                 pos_x += 1;
                 move(*pos_y, *pos_x);
                 refresh();
-            }else{
+            }
+            else{
                 mvprintw(info_line_y, info_line_x, str4);
                 move(*pos_y, *pos_x);
                 refresh();
             }
-        }else if(input == 'P'){
+        }
+        else if (input == 'P') {
             // I wanted to use KEY_ENTER instead of 'P' but it would not work
             // for some reason. When the user presses 'P' it checks where the
             // cursor is and sets the space_ptr to the appropriate index in the
             // playable_spaces array.
-            if(*pos_y == playable_y[0] && *pos_x == playable_x[0]){
+            if (*pos_y == playable_y[0] && *pos_x == playable_x[0]) {
                 space_ptr = &playable_spaces[0];                
-            }else if(*pos_y == playable_y[1] && *pos_x == playable_x[1]){
+            }
+            else if (*pos_y == playable_y[1] && *pos_x == playable_x[1]) {
                 space_ptr = &playable_spaces[1];
-            }else if(*pos_y == playable_y[2] && *pos_x == playable_x[2]){
+            }
+            else if (*pos_y == playable_y[2] && *pos_x == playable_x[2]) {
                 space_ptr = &playable_spaces[2];
-            }else if(*pos_y == playable_y[3] && *pos_x == playable_x[3]){
+            }
+            else if (*pos_y == playable_y[3] && *pos_x == playable_x[3]) {
                 space_ptr = &playable_spaces[3];
-            }else if(*pos_y == playable_y[4] && *pos_x == playable_x[4]){
+            }
+            else if (*pos_y == playable_y[4] && *pos_x == playable_x[4]) {
                 space_ptr = &playable_spaces[4];
-            }else if(*pos_y == playable_y[5] && *pos_x == playable_x[5]){
+            }
+            else if (*pos_y == playable_y[5] && *pos_x == playable_x[5]) {
                 space_ptr = &playable_spaces[5];
-            }else if(*pos_y == playable_y[6] && *pos_x == playable_x[6]){
+            }
+            else if (*pos_y == playable_y[6] && *pos_x == playable_x[6]) {
                 space_ptr = &playable_spaces[6];
-            }else if(*pos_y == playable_y[7] && *pos_x == playable_x[7]){
+            }
+            else if (*pos_y == playable_y[7] && *pos_x == playable_x[7]) {
                 space_ptr = &playable_spaces[7];
-            }else if(*pos_y == playable_y[8] && *pos_x == playable_x[8]){
+            }
+            else if (*pos_y == playable_y[8] && *pos_x == playable_x[8]) {
                 space_ptr = &playable_spaces[8];
             }
             // Then checks to see if that space is empty.
             // If so it sets the color properly and then places the piece.
-            if(*space_ptr == ' '){
-                if(side == 'X'){
+            if (*space_ptr == ' ') {
+                if (side == 'X') {
                     attron(COLOR_PAIR(X_COLOR));
                     mvaddch(*pos_y, *pos_x, 'X');
                     attron(COLOR_PAIR(BG_COLOR));
                     *space_ptr = 'X';
-                }else if(side == 'O'){
+                }
+                else if (side == 'O') {
                     attron(COLOR_PAIR(O_COLOR));
                     mvaddch(*pos_y, *pos_x, 'O');
                     attron(COLOR_PAIR(BG_COLOR));
@@ -514,12 +539,14 @@ void player_turn(char *space_ptr, char playable_spaces[num_spaces], char side){
                 }
                 refresh();
                 moving = 0;
-            }else{
+            }
+            else{
                 mvprintw(info_line_y, info_line_x, str5);
                 move(*pos_y, *pos_x);
                 refresh();
             }
-        }else{
+        }
+        else{
             mvprintw(info_line_y, info_line_x, str3);
             move(*pos_y, *pos_x);
             refresh();
@@ -531,7 +558,7 @@ void player_turn(char *space_ptr, char playable_spaces[num_spaces], char side){
 // Begin AI Logic ////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
-void ai_turn(char *space_ptr, char playable_spaces[num_spaces], char side){
+void ai_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char side) {
     // wrapper for the AI turn
     /*
         Note: Since it is easy to accidentally create an unbeatable AI for tic tac toe
@@ -552,9 +579,10 @@ void ai_turn(char *space_ptr, char playable_spaces[num_spaces], char side){
     const int chance_to_fart_center = 30;
     // Picking the character for the AI to use in its calculations
     char ai_side;
-    if(side == 'X'){
+    if (side == 'X') {
         ai_side = 'O';
-    }else if(side == 'O'){
+    }
+    else if (side == 'O') {
         ai_side = 'X';
     }
     // Check the board state with a few functions.
@@ -565,39 +593,44 @@ void ai_turn(char *space_ptr, char playable_spaces[num_spaces], char side){
     // Flow through the decision making logic applying the functions and checking for a fart
     int thinking = 1;
     int picked_space;
-    while(thinking){
-        if(playable_spaces[4] == ' '){
-            if(!(ai_fart(chance_to_fart_center))){
+    while(thinking) {
+        if (playable_spaces[4] == ' ') {
+            if (!(ai_fart(chance_to_fart_center))) {
                 picked_space = 4;
                 thinking = 0;
                 break;
             }
         }
-        if(can_winning_move){
-            if(!(ai_fart(chance_to_fart_big_move))){
+        if (can_winning_move) {
+            if (!(ai_fart(chance_to_fart_big_move))) {
                 picked_space = can_winning_move;
                 thinking = 0;
-            }else{
+            }
+            else{
                 picked_space = pick_random_space(playable_spaces);
                 thinking = 0;
             }
-        }else if(can_block_opponent){
-            if(!(ai_fart(chance_to_fart_big_move))){
+        }
+        else if (can_block_opponent) {
+            if (!(ai_fart(chance_to_fart_big_move))) {
                 picked_space = can_block_opponent;
                 thinking = 0;
-            }else{
+            }
+            else{
                 picked_space = pick_random_space(playable_spaces);
                 thinking = 0;
             }
-        }else{
+        }
+        else{
             picked_space = pick_random_space(playable_spaces);
             thinking = 0;
         }
     }
     space_ptr = &playable_spaces[picked_space];
-    if(ai_side == 'X'){
+    if (ai_side == 'X') {
         attron(COLOR_PAIR(X_COLOR));
-    }else if(ai_side == 'O'){
+    }
+    else if (ai_side == 'O') {
         attron(COLOR_PAIR(O_COLOR));
     }
     *space_ptr = ai_side;
@@ -605,156 +638,173 @@ void ai_turn(char *space_ptr, char playable_spaces[num_spaces], char side){
 }
 
 
-int ai_fart(const int chance_to_fart){
+static int ai_fart(const int chance_to_fart) {
     // Takes the fart chance and returns 1 if the AI blows the move, 0 otherwise
     int roll;
     roll = rand() % 100 + 1;
-    if(roll < chance_to_fart){
+    if (roll < chance_to_fart) {
         return 1;
-    }else{
+    }
+else{
         return 0;
     }
 }
 
-int pick_random_space(char playable_spaces[num_spaces]){
+int pick_random_space(char playable_spaces[NUM_SPACES]) {
     // Returns a random open space on the board
     int roll;
     int rolling = 1;
     int pick;
-    while(rolling){
-        roll = rand() % num_spaces;
-        if(playable_spaces[roll] == ' '){
+    while(rolling) {
+        roll = rand() % NUM_SPACES;
+        if (playable_spaces[roll] == ' ') {
             pick = roll;
             rolling = 0;
-        }else{
+        }
+else{
             continue;
         }
     }
     return pick;
 }
 
-int check_for_winning_move(char playable_spaces[num_spaces], char ai_side){
+int check_for_winning_move(char playable_spaces[NUM_SPACES], char ai_side) {
     // Checks to see if the AI can win the game with a final move and returns the
     // index of the valid move if TRUE, returns 0 if FALSE
     int space;
     int pick;
     int picked = 0;
-    for(space = 0; space < num_spaces; space++){
+    for (space = 0; space < NUM_SPACES; space++) {
         // For each space: Check to see if it is a potential winning space and if so
         // switch "picked" to 1 and set "pick" to the winning index
-        switch(space){
+        switch(space) {
             case(0):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[1] == ai_side && playable_spaces[2] == ai_side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[1] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[3] == ai_side && playable_spaces[6] == ai_side){
+                    }
+else if (playable_spaces[3] == ai_side && playable_spaces[6] == ai_side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[4] == ai_side && playable_spaces[8] == ai_side){
+                    }
+else if (playable_spaces[4] == ai_side && playable_spaces[8] == ai_side) {
                         pick = space;
                         picked = 1;
                     }
                 }
                 break;
             case(1):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[0] == ai_side && playable_spaces[2] == ai_side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[0] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[4] == ai_side && playable_spaces[7] == ai_side){
+                    }
+else if (playable_spaces[4] == ai_side && playable_spaces[7] == ai_side) {
                         pick = space;
                         picked = 1;
                     }
                 }
                 break;
             case(2):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[1] == ai_side && playable_spaces[0] == ai_side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[1] == ai_side && playable_spaces[0] == ai_side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[4] == ai_side && playable_spaces[6] == ai_side){
+                    }
+else if (playable_spaces[4] == ai_side && playable_spaces[6] == ai_side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[5] == ai_side && playable_spaces[8] == ai_side){
+                    }
+else if (playable_spaces[5] == ai_side && playable_spaces[8] == ai_side) {
                         pick = space;
                         picked = 1;
                     }
                 }
                 break;
             case(3):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[4] == ai_side && playable_spaces[5] == ai_side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[4] == ai_side && playable_spaces[5] == ai_side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[0] == ai_side && playable_spaces[6] == ai_side){
+                    }
+else if (playable_spaces[0] == ai_side && playable_spaces[6] == ai_side) {
                         pick = space;
                         picked = 1;
                     }
                 }
                 break;
             case(4):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[1] == ai_side && playable_spaces[7] == ai_side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[1] == ai_side && playable_spaces[7] == ai_side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[3] == ai_side && playable_spaces[5] == ai_side){
+                    }
+else if (playable_spaces[3] == ai_side && playable_spaces[5] == ai_side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[0] == ai_side && playable_spaces[8] == ai_side){
+                    }
+else if (playable_spaces[0] == ai_side && playable_spaces[8] == ai_side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[6] == ai_side && playable_spaces[2] == ai_side){
+                    }
+else if (playable_spaces[6] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
                         picked = 1;
                     }
                 }
                 break;
             case(5):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[8] == ai_side && playable_spaces[2] == ai_side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[8] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[3] == ai_side && playable_spaces[4] == ai_side){
+                    }
+else if (playable_spaces[3] == ai_side && playable_spaces[4] == ai_side) {
                         pick = space;
                         picked = 1;
                     }
                 }
                 break;
             case(6):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[4] == ai_side && playable_spaces[2] == ai_side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[4] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[7] == ai_side && playable_spaces[8] == ai_side){
+                    }
+else if (playable_spaces[7] == ai_side && playable_spaces[8] == ai_side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[3] == ai_side && playable_spaces[0] == ai_side){
+                    }
+else if (playable_spaces[3] == ai_side && playable_spaces[0] == ai_side) {
                         pick = space;
                         picked = 1;
                     }
                 }
                 break;
             case(7):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[6] == ai_side && playable_spaces[8] == ai_side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[6] == ai_side && playable_spaces[8] == ai_side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[4] == ai_side && playable_spaces[1] == ai_side){
+                    }
+else if (playable_spaces[4] == ai_side && playable_spaces[1] == ai_side) {
                         pick = space;
                         picked = 1;
                     }
                 }
                 break;
             case(8):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[5] == ai_side && playable_spaces[2] == ai_side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[5] == ai_side && playable_spaces[2] == ai_side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[4] == ai_side && playable_spaces[0] == ai_side){
+                    }
+else if (playable_spaces[4] == ai_side && playable_spaces[0] == ai_side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[7] == ai_side && playable_spaces[6] == ai_side){
+                    }
+else if (playable_spaces[7] == ai_side && playable_spaces[6] == ai_side) {
                         pick = space;
                         picked = 1;
                     }
@@ -763,14 +813,15 @@ int check_for_winning_move(char playable_spaces[num_spaces], char ai_side){
         }
     }
     // return winning index if any
-    if(picked){
+    if (picked) {
         return pick;
-    }else{
+    }
+else{
         return 0;
     }
 }
 
-int check_for_block(char playable_spaces[num_spaces], char side){
+int check_for_block(char playable_spaces[NUM_SPACES], char side) {
     // Checks to see if the AI can block the player from winning the game with a final move
     // and returns the index of the valid move if TRUE, returns 0 if FALSE
     // Note: I am sure there is a way to combine this this function with the
@@ -779,122 +830,137 @@ int check_for_block(char playable_spaces[num_spaces], char side){
     int space;
     int pick;
     int picked = 0;
-    for(space = 0; space < num_spaces; space++){
+    for (space = 0; space < NUM_SPACES; space++) {
         // For each space: Check to see if it is a potential winning space and if so
         // switch "picked" to 1 and set "pick" to the winning index
-        switch(space){
+        switch(space) {
             case(0):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[1] == side && playable_spaces[2] == side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[1] == side && playable_spaces[2] == side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[3] == side && playable_spaces[6] == side){
+                    }
+else if (playable_spaces[3] == side && playable_spaces[6] == side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[4] == side && playable_spaces[8] == side){
+                    }
+else if (playable_spaces[4] == side && playable_spaces[8] == side) {
                         pick = space;
                         picked = 1;
                     }
                 }
                 break;
             case(1):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[0] == side && playable_spaces[2] == side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[0] == side && playable_spaces[2] == side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[4] == side && playable_spaces[7] == side){
+                    }
+else if (playable_spaces[4] == side && playable_spaces[7] == side) {
                         pick = space;
                         picked = 1;
                     }
                 }
                 break;
             case(2):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[1] == side && playable_spaces[0] == side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[1] == side && playable_spaces[0] == side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[4] == side && playable_spaces[6] == side){
+                    }
+else if (playable_spaces[4] == side && playable_spaces[6] == side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[5] == side && playable_spaces[8] == side){
+                    }
+else if (playable_spaces[5] == side && playable_spaces[8] == side) {
                         pick = space;
                         picked = 1;
                     }
                 }
                 break;
             case(3):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[4] == side && playable_spaces[5] == side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[4] == side && playable_spaces[5] == side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[0] == side && playable_spaces[6] == side){
+                    }
+else if (playable_spaces[0] == side && playable_spaces[6] == side) {
                         pick = space;
                         picked = 1;
                     }
                 }
                 break;
             case(4):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[1] == side && playable_spaces[7] == side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[1] == side && playable_spaces[7] == side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[3] == side && playable_spaces[5] == side){
+                    }
+else if (playable_spaces[3] == side && playable_spaces[5] == side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[0] == side && playable_spaces[8] == side){
+                    }
+else if (playable_spaces[0] == side && playable_spaces[8] == side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[6] == side && playable_spaces[2] == side){
+                    }
+else if (playable_spaces[6] == side && playable_spaces[2] == side) {
                         pick = space;
                         picked = 1;
                     }
                 }
                 break;
             case(5):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[8] == side && playable_spaces[2] == side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[8] == side && playable_spaces[2] == side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[3] == side && playable_spaces[4] == side){
+                    }
+else if (playable_spaces[3] == side && playable_spaces[4] == side) {
                         pick = space;
                         picked = 1;
                     }
                 }
                 break;
             case(6):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[4] == side && playable_spaces[2] == side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[4] == side && playable_spaces[2] == side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[7] == side && playable_spaces[8] == side){
+                    }
+else if (playable_spaces[7] == side && playable_spaces[8] == side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[3] == side && playable_spaces[0] == side){
+                    }
+else if (playable_spaces[3] == side && playable_spaces[0] == side) {
                         pick = space;
                         picked = 1;
                     }
                 }
                 break;
             case(7):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[6] == side && playable_spaces[8] == side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[6] == side && playable_spaces[8] == side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[4] == side && playable_spaces[1] == side){
+                    }
+else if (playable_spaces[4] == side && playable_spaces[1] == side) {
                         pick = space;
                         picked = 1;
                     }
                 }
                 break;
             case(8):
-                if(playable_spaces[space] == ' '){
-                    if(playable_spaces[5] == side && playable_spaces[2] == side){
+                if (playable_spaces[space] == ' ') {
+                    if (playable_spaces[5] == side && playable_spaces[2] == side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[4] == side && playable_spaces[0] == side){
+                    }
+else if (playable_spaces[4] == side && playable_spaces[0] == side) {
                         pick = space;
                         picked = 1;
-                    }else if(playable_spaces[7] == side && playable_spaces[6] == side){
+                    }
+else if (playable_spaces[7] == side && playable_spaces[6] == side) {
                         pick = space;
                         picked = 1;
                     }
@@ -903,9 +969,10 @@ int check_for_block(char playable_spaces[num_spaces], char side){
         }
     }
     // return winning index if any
-    if(picked){
+    if (picked) {
         return pick;
-    }else{
+    }
+else{
         return 0;
     }
 }
@@ -914,12 +981,12 @@ int check_for_block(char playable_spaces[num_spaces], char side){
 // End AI Logic ///////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 
-int spaces_left(char playable_spaces[num_spaces]){
+int spaces_left(char playable_spaces[NUM_SPACES]) {
     // Returns 0 if no spaces left
     int hits = 0;
     int k;
-    for(k = 0; k < num_spaces; k++){
-        if(playable_spaces[k] == ' '){
+    for (k = 0; k < NUM_SPACES; k++) {
+        if (playable_spaces[k] == ' ') {
         hits++;
         }
     }
