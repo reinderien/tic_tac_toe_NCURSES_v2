@@ -11,12 +11,19 @@
 #include <stdio.h>
 #include <time.h>
 
-// The COLOR_PAIR IDs
+
 typedef enum {
     X_COLOR = 1,
     O_COLOR,
     BG_COLOR
 } ColorPairID;
+
+typedef enum {
+    STILL_PLAYING,
+    X_WINNER,
+    O_WINNER,
+    TIED_GAME
+} GameOverState;
 
 #define SQSIZE 3
 #define NUM_SPACES (SQSIZE*SQSIZE)
@@ -28,7 +35,7 @@ static void init_spaces(char *space_ptr);
 static void paint_board(char playable_spaces[NUM_SPACES]);
 static void take_turn(char side, char *space_ptr,
                       char playable_spaces[NUM_SPACES]);
-static void victory_splash(int game_over_state);
+static void victory_splash(GameOverState game_over_state);
 static void paint_background();
 static void player_turn(char *space_ptr, char playable_spaces[NUM_SPACES],
                         char side);
@@ -39,7 +46,7 @@ static int pick_ai_space(const char playable_spaces[NUM_SPACES],
                          int chance_to_fart_center,
                          char side, char ai_side);
 static bool main_menu();
-static int evaluate_board(char playable_spaces[NUM_SPACES]);
+static GameOverState evaluate_board(char playable_spaces[NUM_SPACES]);
 static int spaces_left(const char playable_spaces[NUM_SPACES]);
 static bool ai_fart(int chance_to_fart);
 static int pick_random_space(const char playable_spaces[NUM_SPACES]);
@@ -83,7 +90,7 @@ int main(int argc, char **argv) {
         // Player picks their side.
         char side = pick_side();
         // The inner, inner turn loop
-        int game_over;
+        GameOverState game_over;
         do {
             // Paint the board state as it is that turn
             paint_board(playable_spaces);
@@ -91,7 +98,7 @@ int main(int argc, char **argv) {
             take_turn(side, space_ptr, playable_spaces);
             // Evaluate the board for game over state
             game_over = evaluate_board(playable_spaces);
-        } while (!game_over);
+        } while (game_over == STILL_PLAYING);
         // paint the board with a splash on game over
         // so the player can evaluate the board for a moment
         paint_board(playable_spaces);
@@ -240,57 +247,57 @@ static bool main_menu() {
     }
 }
 
-static int evaluate_board(char playable_spaces[NUM_SPACES]) {
+static GameOverState evaluate_board(char playable_spaces[NUM_SPACES]) {
     // Evaluates the state of the playable spaces and either does nothing
     // or ends the game.
     // Check all the possible winning combinations:
     if (playable_spaces[0] == 'X' && playable_spaces[1] == 'X' && playable_spaces[2] == 'X') {
-        return 1;
+        return X_WINNER;
     }
     if (playable_spaces[3] == 'X' && playable_spaces[4] == 'X' && playable_spaces[5] == 'X') {
-        return 1;
+        return X_WINNER;
     }
     if (playable_spaces[6] == 'X' && playable_spaces[7] == 'X' && playable_spaces[8] == 'X') {
-        return 1;
+        return X_WINNER;
     }
     if (playable_spaces[0] == 'X' && playable_spaces[3] == 'X' && playable_spaces[6] == 'X') {
-        return 1;
+        return X_WINNER;
     }
     if (playable_spaces[1] == 'X' && playable_spaces[4] == 'X' && playable_spaces[7] == 'X') {
-        return 1;
+        return X_WINNER;
     }
     if (playable_spaces[2] == 'X' && playable_spaces[5] == 'X' && playable_spaces[8] == 'X') {
-        return 1;
+        return X_WINNER;
     }
     if (playable_spaces[0] == 'X' && playable_spaces[4] == 'X' && playable_spaces[8] == 'X') {
-        return 1;
+        return X_WINNER;
     }
     if (playable_spaces[2] == 'X' && playable_spaces[4] == 'X' && playable_spaces[6] == 'X') {
-        return 1;
+        return X_WINNER;
     }
     if (playable_spaces[0] == 'O' && playable_spaces[1] == 'O' && playable_spaces[2] == 'O') {
-        return 2;
+        return O_WINNER;
     }
     if (playable_spaces[3] == 'O' && playable_spaces[4] == 'O' && playable_spaces[5] == 'O') {
-        return 2;
+        return O_WINNER;
     }
     if (playable_spaces[6] == 'O' && playable_spaces[7] == 'O' && playable_spaces[8] == 'O') {
-        return 2;
+        return O_WINNER;
     }
     if (playable_spaces[0] == 'O' && playable_spaces[3] == 'O' && playable_spaces[6] == 'O') {
-        return 2;
+        return O_WINNER;
     }
     if (playable_spaces[1] == 'O' && playable_spaces[4] == 'O' && playable_spaces[7] == 'O') {
-        return 2;
+        return O_WINNER;
     }
     if (playable_spaces[2] == 'O' && playable_spaces[5] == 'O' && playable_spaces[8] == 'O') {
-        return 2;
+        return O_WINNER;
     }
     else if (playable_spaces[0] == 'O' && playable_spaces[4] == 'O' && playable_spaces[8] == 'O') {
-        return 2;
+        return O_WINNER;
     }
     else if (playable_spaces[2] == 'O' && playable_spaces[4] == 'O' && playable_spaces[6] == 'O') {
-        return 2;
+        return O_WINNER;
     }
 
     // Check all spaces for a tie
@@ -300,9 +307,9 @@ static int evaluate_board(char playable_spaces[NUM_SPACES]) {
             hits++;
 
     if (hits >= NUM_SPACES)
-        return 3;
+        return TIED_GAME;
 
-    return 0;
+    return STILL_PLAYING;
 }
 
 char pick_side() {
@@ -318,8 +325,8 @@ char pick_side() {
         paint_background();
         int row, col;
         getmaxyx(stdscr, row, col);
-        int y = row / 2 - 2,
-            x = col / 2 - len / 2;
+        int y = row/2 - 2,
+            x = col/2 - len/2;
         mvprintw(y++, x, padding);
         mvprintw(y++, x, str1);
         mvprintw(y++, x, padding);
@@ -355,23 +362,22 @@ char pick_side() {
     }
 }
 
-static void victory_splash(int game_over_state) {
+static void victory_splash(GameOverState game_over_state) {
     // Takes the game over state and creates a victory splash
-    const char *padding = "                                   ",
-               *str1    = "              X Wins!              ",
-               *str2    = "              O Wins!              ",
-               *str3    = "         any key to continue...    ",
-               *str4    = "             A tie game!           ";
+    const char *padding = "                                   ";
     int len = strlen(padding);
-    const char *vic_pointer;
+    const char *msg;
     // To avoid code duplication, use a pointer to pick the right string
     switch (game_over_state) {
-    case 1:
-        vic_pointer = str1;
-    case 2:
-        vic_pointer = str2;
-    case 3:
-        vic_pointer = str4;
+    case X_WINNER:
+        msg = "              X Wins!              ";
+        break;
+    case O_WINNER:
+        msg = "              O Wins!              ";
+        break;
+    case TIED_GAME:
+        msg = "             A tie game!           ";
+        break;
     }
     clear();
     paint_background();
@@ -380,9 +386,9 @@ static void victory_splash(int game_over_state) {
     int y = row/2 - 2,
         x = col/2 - len/2;
     mvprintw(y++, x, padding);
-    mvprintw(y++, x, vic_pointer);
+    mvprintw(y++, x, msg);
     mvprintw(y++, x, padding);
-    mvprintw(y, x, str3);
+    mvprintw(y, x, "         any key to continue...    ");
     refresh();
     getch();
 }
@@ -430,8 +436,8 @@ static void player_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char 
     getmaxyx(stdscr, row, col);
     const int board_line_len = 9;
     const int board_lines = 9;
-    y = row / 2 - board_line_len / 2;
-    x = col / 2 - board_line_len / 2;
+    y = row/2 - board_line_len/2;
+    x = col/2 - board_line_len/2;
     // Use the same method of dynamically measuring where the spaces are at using
     // terminal size as in the paint_board() function.
     int playable_x[NUM_SPACES] = {x+2, x+4, x+6, x+2, x+4, x+6, x+2, x+4, x+6};
@@ -450,7 +456,7 @@ static void player_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char 
     move(*pos_y, *pos_x);
     curs_set(1);
     refresh();
-    while(moving) {
+    while (moving) {
         // For each movement key, if the move is valid, use pointer
         // arithmetic to mov pos_x and pos_y around.
         input = toupper(getch());
@@ -460,7 +466,7 @@ static void player_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char 
                 move(*pos_y, *pos_x);
                 refresh();
             }
-            else{
+            else {
                 mvprintw(info_line_y, info_line_x, str4);
                 move(*pos_y, *pos_x);
                 refresh();
@@ -472,7 +478,7 @@ static void player_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char 
                 move(*pos_y, *pos_x);
                 refresh();
             }
-            else{
+            else {
                 mvprintw(info_line_y, info_line_x, str4);
                 move(*pos_y, *pos_x);
                 refresh();
@@ -496,7 +502,7 @@ static void player_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char 
                 move(*pos_y, *pos_x);
                 refresh();
             }
-            else{
+            else {
                 mvprintw(info_line_y, info_line_x, str4);
                 move(*pos_y, *pos_x);
                 refresh();
@@ -552,13 +558,13 @@ static void player_turn(char *space_ptr, char playable_spaces[NUM_SPACES], char 
                 refresh();
                 moving = 0;
             }
-            else{
+            else {
                 mvprintw(info_line_y, info_line_x, str5);
                 move(*pos_y, *pos_x);
                 refresh();
             }
         }
-        else{
+        else {
             mvprintw(info_line_y, info_line_x, str3);
             move(*pos_y, *pos_x);
             refresh();
