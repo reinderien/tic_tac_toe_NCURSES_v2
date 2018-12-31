@@ -11,10 +11,12 @@
 #include <stdio.h>
 #include <time.h>
 
-// #define's for the COLOR_PAIRs
-#define X_COLOR 1
-#define O_COLOR 2
-#define BG_COLOR 3
+// The COLOR_PAIR IDs
+typedef enum {
+    X_COLOR = 1,
+    O_COLOR,
+    BG_COLOR
+} ColorPairID;
 
 #define SQSIZE 3
 #define NUM_SPACES (SQSIZE*SQSIZE)
