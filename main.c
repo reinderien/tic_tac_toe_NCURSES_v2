@@ -393,7 +393,7 @@ static void paint_background() {
     getmaxyx(stdscr, row, col);
     for (int y = 0; y <= row; y++) {
         for (int x = 0; x <= col; x++) {
-            int color;
+            ColorPairID color;
             char draw;
             switch (rand() % 3) {
                 case 0:
